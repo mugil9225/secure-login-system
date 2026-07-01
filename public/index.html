@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Auth Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-box" id="authBox">
+            <h2 id="formTitle">Login to Account</h2>
+            <p class="message" id="responseMsg"></p>
+            
+            <form id="authForm">
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="email" required placeholder="name@domain.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required placeholder="••••••••" minlength="8">
+                </div>
+                <button type="submit" id="submitBtn">Sign In</button>
+            </form>
+
+            <div class="toggle-text">
+                <span id="toggleMsg">Don't have an account?</span> 
+                <a href="#" id="toggleLink">Register here</a>
+            </div>
+        </div>
+
+        <div class="auth-box hidden" id="dashboardBox">
+            <h2>Welcome to Secure Dashboard 🎉</h2>
+            <p id="userWelcome"></p>
+            <button id="logoutBtn" class="logout-btn">Secure Logout</button>
+        </div>
+    </div>
+
+    <script>
+        let isLoginMode = true;
+        const authForm = document.getElementById('authForm');
+        const formTitle = document.getElementById('formTitle');
+        const submitBtn = document.getElementById('submitBtn');
+        const toggleLink = document.getElementById('toggleLink');
+        const toggleMsg = document.getElementById('toggleMsg');
+        const responseMsg = document.getElementById('responseMsg');
+
+        // Toggle between Login and Register modes
+        toggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            isLoginMode = !isLoginMode;
+            responseMsg.innerText = '';
+            if (isLoginMode) {
+                formTitle.innerText = "Login to Account";
+                submitBtn.innerText = "Sign In";
+                toggleMsg.innerText = "Don't have an account?";
+                toggleLink.innerText = "Register here";
+            } else {
+                formTitle.innerText = "Create Secure Account";
+                submitBtn.innerText = "Sign Up";
+                toggleMsg.innerText = "Already have an account?";
+                toggleLink.innerText = "Login here";
+            }
+        });
+
+        // Form Submit Action
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            responseMsg.innerText = '';
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const endpoint = isLoginMode ? '/api/login' : '/api/register';
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    responseMsg.style.color = '#ff4d4d';
+                    responseMsg.innerText = data.error || 'Something went wrong';
+                } else {
+                    responseMsg.style.color = '#2ecc71';
+                    responseMsg.innerText = data.message;
+                    
+                    if (isLoginMode) {
+                        // Successfully logged in -> Check Dashboard
+                        checkDashboard();
+                    } else {
+                        // Registered -> Switch to Login automatically
+                        authForm.reset();
+                        toggleLink.click();
+                    }
+                }
+            } catch (err) {
+                responseMsg.innerText = 'Failed to connect to server.';
+            }
+        });
+
+        // Fetch Protected Dashboard Data
+        async function checkDashboard() {
+            try {
+                const res = await fetch('/api/dashboard');
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('authBox').classList.add('hidden');
+                    document.getElementById('dashboardBox').classList.remove('hidden');
+                    document.getElementById('userWelcome').innerText = `Logged in as: ${data.email}`;
+                }
+            } catch (err) { console.log(err); }
+        }
+
+        // Logout Event
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            await fetch('/api/logout', { method: 'POST' });
+            document.getElementById('authBox').classList.remove('hidden');
+            document.getElementById('dashboardBox').classList.add('hidden');
+            authForm.reset();
+            responseMsg.innerText = 'Logged out securely.';
+            responseMsg.style.color = '#2ecc71';
+        });
+
+        // Initial check on load
+        checkDashboard();
+    </script>
+</body>
+</html>
